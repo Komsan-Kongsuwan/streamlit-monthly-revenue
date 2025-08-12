@@ -1,46 +1,55 @@
-# chart_page.py (for streamlit-monthly-revenue)
+# chart_page.py
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 
 def render_chart_page(site_code):
-    st.title(f"📊 Monthly Revenue Analysis - {site_code}")
+    st.title(f"📈 Customer Revenue Analysis - {site_code}")
 
+    # Ensure data is loaded from session
     if "official_data" not in st.session_state:
-        st.warning("⚠️ Data not found. Please generate the report first.")
+        st.warning("⚠️ Customer data not found. Generate the report first.")
         st.stop()
 
     df_raw = st.session_state["official_data"].copy()
-    df_raw = df_raw[df_raw['Site'] == site_code]
-    df_raw['Amount'] = pd.to_numeric(df_raw['Amount'], errors='coerce').fillna(0)
-    df_raw['Period'] = pd.to_datetime(df_raw['Year'] + "-" + df_raw['Month'], format="%Y-%m")
 
-    # --- Line Chart ---
+    # Filter by selected site
+    df_raw = df_raw[df_raw['Site'] == site_code]
+
+    # Ensure Amount is numeric
+    df_raw['Amount'] = pd.to_numeric(df_raw['Amount'], errors='coerce').fillna(0)
+
+    # Create Period column (datetime)
+    df_raw['Period'] = pd.to_datetime(df_raw['Year'].astype(str) + "-" + df_raw['Month'].astype(str).str.zfill(2), format="%Y-%m")
+
+    # -------------------
+    # Select Customers for charts
     customers = sorted(df_raw['Customer'].dropna().unique())
+    default_customer = customers[0] if customers else None
+
     selected_customers = st.multiselect(
-        "Select Customer Chart",
+        "Select Customer(s) for Chart",
         customers,
-        default=[customers[0]] if customers else []
+        default=[default_customer] if default_customer else []
     )
+
     if not selected_customers:
         st.info("Select at least one customer.")
         st.stop()
 
-    selected_customers_display = [cust.split("]-", 1)[-1] for cust in selected_customers]
-    st.markdown(f"### 📈 {', '.join(selected_customers_display)} - Line Chart")
+    # -------------------
+    # Line Chart
+    st.markdown(f"### 📈 {', '.join(selected_customers)} - Line Chart")
 
-    line_df = (
-        df_raw[df_raw['Customer'].isin(selected_customers)]
-        .groupby(['Customer', 'Period'], as_index=False)['Amount']
-        .sum()
-    )
+    line_df = df_raw[df_raw['Customer'].isin(selected_customers)] \
+        .groupby(['Customer', 'Period'], as_index=False)['Amount'].sum()
 
     fig_line = px.line(
         line_df,
         x='Period',
         y='Amount',
         color='Customer',
-        title="Monthly",
+        title="Monthly Revenue Trend",
         markers=True
     )
     fig_line.update_layout(
@@ -61,21 +70,23 @@ def render_chart_page(site_code):
     )
     st.plotly_chart(fig_line, use_container_width=True)
 
-    # --- Bar Chart ---
-    st.markdown(f"### 📊 {', '.join(selected_customers_display)} - Bar Chart")
-    bar_df = (
-        df_raw[df_raw['Customer'].isin(selected_customers)]
-        .groupby(['Year'], as_index=False)['Amount']
-        .sum()
-        .sort_values(by='Amount', ascending=False)
-    )
+    # -------------------
+    # Bar Chart
+    st.markdown(f"### 📊 {', '.join(selected_customers)} - Yearly Total Bar Chart")
+
+    bar_df = df_raw[df_raw['Customer'].isin(selected_customers)] \
+        .groupby(['Customer', 'Year'], as_index=False)['Amount'].sum()
 
     fig_bar = px.bar(
         bar_df,
         x='Year',
         y='Amount',
-        title="Yearly",
+        color='Customer',
+        title="Yearly Revenue",
         text_auto='.2s'
     )
-    fig_bar.update_layout(xaxis_title="", yaxis_title="Total Amount (THB)")
+    fig_bar.update_layout(
+        xaxis_title="Year",
+        yaxis_title="Total Amount (THB)"
+    )
     st.plotly_chart(fig_bar, use_container_width=True)
