@@ -1,4 +1,5 @@
-# pages/2_Customer_Report.py
+# streamlit-customer-report/generate_data.py
+
 import streamlit as st
 import pandas as pd
 import numpy as np
