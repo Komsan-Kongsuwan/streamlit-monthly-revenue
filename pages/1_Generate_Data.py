@@ -267,3 +267,10 @@ st.download_button(
     file_name="customer_monthly_report.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
+
+# store results in session_state for other pages
+st.session_state["customer_data_raw"] = df_final
+st.session_state["customer_report_pivot"] = pivot_df
+
+# ✅ for chart_page.py compatibility (like streamlit-official-report)
+st.session_state["official_data"] = df_final.copy()
